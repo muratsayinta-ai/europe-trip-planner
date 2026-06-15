@@ -9,6 +9,20 @@ const hasCoords = a => typeof a.lat === 'number' && typeof a.lng === 'number'
 // Re-number itinerary days 1..N after inserts/removals.
 const renumber = (arr) => arr.map((d, i) => ({ ...d, day: i + 1 }))
 
+// Reorder itinerary day-blocks to follow the city order (each city's own days
+// keep their internal order). Days for an unknown city are parked at the end.
+// This is the trip's invariant: the day plan always matches the city order.
+const orderItineraryByCities = (cityArr, it) => {
+  const known = new Set(cityArr.map(c => c.id))
+  const ordered = cityArr.flatMap(c => it.filter(d => d.city === c.id))
+  const orphans = it.filter(d => !known.has(d.city))
+  return renumber([...ordered, ...orphans])
+}
+
+// True when two itineraries already have the same city sequence and numbering.
+const sameDayOrder = (a, b) =>
+  a.length === b.length && a.every((d, i) => d.city === b[i].city && d.day === b[i].day)
+
 // Reorder a day's activities into the shortest walking path. Activities without
 // coordinates can't be routed, so they're kept (in their existing order) at the end.
 // `start` (the day's hotel) anchors the route to begin from there.
@@ -80,6 +94,17 @@ export function DataProvider({ children }) {
   useEffect(() => { save('trip_hotels', hotels) }, [hotels])
   useEffect(() => { save('trip_itinerary', itinerary) }, [itinerary])
   useEffect(() => { save('trip_videos', videos) }, [videos])
+
+  // Keep the day plan in lock-step with the city order. Runs whenever the city
+  // list changes (load, drag-reorder, add/remove) and re-groups the itinerary so
+  // a city's days always sit where the city sits — never trailing at the end.
+  // No-op (no re-render / no sync write) when it's already in order.
+  useEffect(() => {
+    setItinerary(prev => {
+      const sorted = orderItineraryByCities(cities, prev)
+      return sameDayOrder(sorted, prev) ? prev : sorted
+    })
+  }, [cities])
 
   // --- Shared sync (Supabase) ---
   // localStorage above is the offline cache; this layer shares one JSON snapshot
@@ -255,20 +280,14 @@ export function DataProvider({ children }) {
     setCities(prev => prev.map(c => c.id === id ? { ...c, ...updated } : c))
   }
 
-  // Reorder the trip's cities. The itinerary day-blocks are reshuffled to follow
-  // the new city order, then renumbered, so the whole trip stays consistent.
+  // Reorder the trip's cities. The day plan follows automatically via the
+  // city-order effect above, so we only need to update the city list here.
   const reorderCities = (from, to) => {
     const arr = [...cities]
     if (from < 0 || to < 0 || from >= arr.length || to >= arr.length || from === to) return
     const [moved] = arr.splice(from, 1)
     arr.splice(to, 0, moved)
     setCities(arr)
-    setItinerary(it => {
-      const known = new Set(arr.map(c => c.id))
-      const ordered = arr.flatMap(c => it.filter(d => d.city === c.id))
-      const orphans = it.filter(d => !known.has(d.city)) // safety: days w/o a city
-      return renumber([...ordered, ...orphans])
-    })
   }
 
   // Make a city the trip's starting point (move it to the front).

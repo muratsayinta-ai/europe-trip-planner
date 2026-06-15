@@ -30,6 +30,24 @@ function numberedIcon(num, color) {
   })
 }
 
+// Leaflet measures its container once; when we toggle full-screen the box
+// changes size, so we must tell it to re-measure or tiles render at the old size.
+function InvalidateOnResize({ trigger }) {
+  const map = useMap()
+  useEffect(() => {
+    const id = setTimeout(() => map.invalidateSize(), 220)
+    return () => clearTimeout(id)
+  }, [trigger])
+  return null
+}
+
+function ExpandIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+}
+function CollapseIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>
+}
+
 function FitBounds({ markers }) {
   const map = useMap()
   const key = markers.map(m => `${m.lat},${m.lng}`).join('|')
@@ -112,7 +130,16 @@ export default function MapView() {
   const tripCityIds = useMemo(() => [...new Set(itinerary.map(d => d.city))], [itinerary])
   const [selectedCity, setSelectedCity] = useState(tripCityIds[0] || 'paris')
   const [mapVisible, setMapVisible] = useState(true)
+  const [fullscreen, setFullscreen] = useState(false)
   const dayRowRef = useRef(null)
+
+  // Let the device back gesture / Esc key leave full screen.
+  useEffect(() => {
+    if (!fullscreen) return
+    const onKey = (e) => { if (e.key === 'Escape') setFullscreen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [fullscreen])
 
   const coordsLookup = useMemo(() => buildCoordsLookup(places), [places])
   const isCity = groupMode === 'city'
@@ -320,7 +347,15 @@ export default function MapView() {
 
       {/* Map */}
       {mapVisible && (
-        <div className="map-container">
+        <div className={`map-container ${fullscreen ? 'fullscreen' : ''}`}>
+          <button
+            className="map-fs-btn"
+            onClick={() => setFullscreen(f => !f)}
+            aria-label={fullscreen ? 'Exit full screen' : 'Full screen map'}
+            title={fullscreen ? 'Exit full screen' : 'Full screen'}
+          >
+            {fullscreen ? <CollapseIcon /> : <ExpandIcon />}
+          </button>
           <MapContainer
             key={mapKey}
             center={defaultCenter}
@@ -332,6 +367,7 @@ export default function MapView() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>'
             />
+            <InvalidateOnResize trigger={fullscreen} />
             <FitBounds markers={markers} />
             {markers.map((m) => (
               <Marker

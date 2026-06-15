@@ -83,6 +83,23 @@ function cityIcon(num, color) {
   })
 }
 
+// Re-measure Leaflet when the container is toggled to/from full screen.
+function InvalidateOnResize({ trigger }) {
+  const map = useMap()
+  useEffect(() => {
+    const id = setTimeout(() => map.invalidateSize(), 220)
+    return () => clearTimeout(id)
+  }, [trigger])
+  return null
+}
+
+function ExpandIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+}
+function CollapseIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>
+}
+
 function FitBounds({ points }) {
   const map = useMap()
   const key = points.map(p => `${p.lat},${p.lng}`).join('|')
@@ -136,6 +153,7 @@ export default function Cities() {
   const { cities, places, hotels, cityDayCount, addCity, removeCity, setCityDayCount, reorderCities } = useData()
   const [adding, setAdding] = useState(false)
   const [showMap, setShowMap] = useState(true)
+  const [mapFull, setMapFull] = useState(false)
   const [showSuggest, setShowSuggest] = useState(false)
   const emptyForm = { name: '', country: '', flag: '📍', color: COLORS[0], lat: null, lng: null }
   const [form, setForm] = useState(emptyForm)
@@ -324,12 +342,24 @@ export default function Cities() {
       </div>
 
       {showMap && (
-        <div className="cities-map">
+        <div className={`cities-map ${mapFull ? 'fullscreen' : ''}`}>
+          {routePoints.length > 0 && (
+            <button
+              type="button"
+              className="map-fs-btn"
+              onClick={() => setMapFull(f => !f)}
+              aria-label={mapFull ? 'Exit full screen' : 'Full screen map'}
+              title={mapFull ? 'Exit full screen' : 'Full screen'}
+            >
+              {mapFull ? <CollapseIcon /> : <ExpandIcon />}
+            </button>
+          )}
           {routePoints.length === 0 ? (
             <div className="cities-map-empty">Add places to your cities so they can be pinned on the map.</div>
           ) : (
             <MapContainer key={mapKey} center={[routePoints[0].lat, routePoints[0].lng]} zoom={5} style={{ width: '100%', height: '100%' }} zoomControl={false}>
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>' />
+              <InvalidateOnResize trigger={mapFull} />
               <FitBounds points={routePoints} />
               {routePoints.length > 1 && (
                 <Polyline positions={routePoints.map(p => [p.lat, p.lng])} pathOptions={{ color: '#2563eb', weight: 3, dashArray: '6 8', opacity: 0.8 }} />

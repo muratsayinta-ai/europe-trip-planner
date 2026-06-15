@@ -686,8 +686,10 @@ a.map-link {
 .map-page {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 48px - 60px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-  overflow: hidden;
+  /* The whole page scrolls as one (mobile = body scroll): a fixed-height map at
+     the top, then the full stops list flowing below it. Previously this was a
+     fixed-height box with the list crammed into a small inner scroll area, which
+     made rows tuck under the map as you scrolled. */
 }
 
 /* Group-by toggle (By day / By city) */
@@ -1052,9 +1054,9 @@ body.reordering .city-route-row:not(.dragging) { opacity: 0.85; }
 }
 
 .map-container {
-  flex: 1;
   position: relative;
-  min-height: 0;
+  height: 300px;
+  flex-shrink: 0;
   /* Own stacking context so Leaflet's panes/controls stay contained and never
      paint over the sticky header or nav drawer while the page scrolls. */
   z-index: 0;
@@ -1082,12 +1084,10 @@ body.reordering .city-route-row:not(.dragging) { opacity: 0.85; }
 .map-activity-list {
   background: white;
   border-top: 1px solid var(--gray-border);
-  overflow-y: auto;
-  max-height: 220px;
-  flex-shrink: 0;
   padding: 8px 14px;
+  /* Natural height — flows with the page rather than scrolling in a small box. */
 }
-.map-activity-list.expanded { max-height: none; flex: 1; min-height: 0; }
+.map-activity-list.expanded { flex: 1; min-height: 0; }
 
 /* Day-color legend (city mode) */
 .day-legend {
@@ -1190,8 +1190,10 @@ body.reordering .city-route-row:not(.dragging) { opacity: 0.85; }
     padding: 28px 32px 48px;
   }
 
-  /* Map fills the remaining main-area height (flex, no magic offsets) */
-  .map-page { height: auto; flex: 1 1 auto; min-height: 0; }
+  /* Desktop app is a fixed 100vh; let the map page scroll as one unit so the
+     stops list flows below a taller map instead of in a cramped inner box. */
+  .map-page { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  .map-container { height: 440px; }
   .cities-map { height: 360px; }
 
   /* Modals become centered dialogs instead of bottom sheets */

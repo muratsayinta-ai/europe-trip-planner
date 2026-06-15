@@ -704,6 +704,48 @@ a.map-link {
   background: var(--blue); color: white; border-color: var(--blue);
 }
 
+/* Per-day travel summary (walking / transit distance + time) */
+.travel-summary {
+  margin: 10px 0;
+  border: 1px solid var(--gray-border); border-radius: 12px;
+  background: white; padding: 10px 12px;
+}
+.travel-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.travel-mode-toggle { display: flex; gap: 6px; }
+.travel-mode-toggle button {
+  padding: 5px 10px; border-radius: 999px;
+  border: 1.5px solid var(--gray-border); background: white; color: var(--text-muted);
+  font-size: 0.78rem; font-weight: 700; cursor: pointer;
+}
+.travel-mode-toggle button.active { background: var(--blue); color: white; border-color: var(--blue); }
+.travel-total {
+  font-size: 0.92rem; font-weight: 800; color: var(--text);
+  display: flex; align-items: center; gap: 6px;
+}
+.travel-est {
+  font-size: 0.62rem; font-weight: 800; color: #b45309;
+  background: #fef3c7; padding: 1px 6px; border-radius: 999px;
+}
+.travel-legs { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.travel-leg {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-size: 0.76rem;
+}
+.travel-leg-route { color: var(--text-muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.travel-leg-num { color: var(--text); font-weight: 700; flex-shrink: 0; }
+.travel-empty, .travel-note {
+  margin-top: 8px; font-size: 0.75rem; color: var(--text-muted);
+}
+.travel-note { color: #b45309; }
+.travel-exact-btn {
+  margin-top: 10px; width: 100%; padding: 8px 10px; border-radius: 9px;
+  border: 1.5px solid var(--blue); background: white; color: var(--blue);
+  font-size: 0.8rem; font-weight: 800; cursor: pointer;
+}
+.travel-exact-btn:disabled { opacity: 0.55; cursor: default; }
+
 /* City pills (wider, show name) */
 .day-pill.city-pill { flex-direction: row; gap: 6px; padding-left: 12px; padding-right: 12px; }
 .pill-cityname { font-size: 0.78rem; font-weight: 700; }

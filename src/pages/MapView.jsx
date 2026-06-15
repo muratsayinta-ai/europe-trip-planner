@@ -4,6 +4,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useData } from '../context/DataContext'
 import ReorderList from '../components/ReorderList'
+import { estimateLeg, googleLegs, hasApiKey, fmtKm, fmtMin } from '../lib/travel'
 
 // Fix leaflet default icon paths broken by bundlers
 delete L.Icon.Default.prototype._getIconUrl
@@ -46,6 +47,105 @@ function ExpandIcon() {
 }
 function CollapseIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>
+}
+
+// Per-day travel summary: walking (or transit) distance + time between the day's
+// stops, optionally starting from the hotel. Shows an instant offline estimate
+// for walking; "Get exact times" upgrades to real Google routing (and is the
+// only way to get transit times). Results are cached per mode + stop list.
+function TravelSummary({ stops, hotel }) {
+  const points = useMemo(() => {
+    const valid = stops.filter(s => typeof s.lat === 'number' && typeof s.lng === 'number')
+    return (hotel && hotel.lat && hotel.lng)
+      ? [{ lat: hotel.lat, lng: hotel.lng, name: '🏨 Hotel' }, ...valid]
+      : valid
+  }, [stops, hotel])
+  const sig = points.map(p => `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`).join('|')
+
+  const [mode, setMode] = useState('walking')
+  const [cache, setCache] = useState({}) // `${mode}|${sig}` -> legs[]
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+
+  // Reset transient UI when the day (stop list) changes.
+  useEffect(() => { setError(null) }, [sig])
+
+  const cacheKey = `${mode}|${sig}`
+  const exact = cache[cacheKey]
+
+  const offline = useMemo(() => {
+    if (points.length < 2) return null
+    return points.slice(0, -1).map((p, i) => estimateLeg(p, points[i + 1], mode))
+  }, [points, mode])
+
+  // Walking shows the estimate right away; transit has no meaningful offline
+  // estimate, so it stays empty until fetched from Google.
+  const legs = exact || (mode === 'walking' ? offline : null)
+
+  const fetchExact = async () => {
+    if (points.length < 2) return
+    setLoading(true); setError(null)
+    try {
+      const res = await googleLegs(points, mode)
+      setCache(c => ({ ...c, [cacheKey]: res }))
+    } catch (e) {
+      setError(e.message === 'no-key' ? 'no-key' : 'failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (points.length < 2) return null
+
+  const totalKm = legs ? legs.reduce((s, l) => s + l.km, 0) : 0
+  const totalMin = legs ? legs.reduce((s, l) => s + l.min, 0) : 0
+  const isEstimate = legs && !exact
+
+  return (
+    <div className="travel-summary">
+      <div className="travel-head">
+        <div className="travel-mode-toggle">
+          <button className={mode === 'walking' ? 'active' : ''} onClick={() => setMode('walking')}>🚶 Walk</button>
+          <button className={mode === 'transit' ? 'active' : ''} onClick={() => setMode('transit')}>🚌 Transit</button>
+        </div>
+        {legs && (
+          <div className="travel-total">
+            {fmtKm(totalKm)} · {fmtMin(totalMin)}
+            {isEstimate && <span className="travel-est">≈ est.</span>}
+          </div>
+        )}
+      </div>
+
+      {legs ? (
+        <div className="travel-legs">
+          {legs.map((l, i) => (
+            <div key={i} className="travel-leg">
+              <span className="travel-leg-route">{points[i].name} → {points[i + 1].name}</span>
+              <span className="travel-leg-num">{fmtKm(l.km)} · {fmtMin(l.min)}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="travel-empty">Transit times come from Google — tap below.</div>
+      )}
+
+      {error === 'no-key' && (
+        <div className="travel-note">Add a Google API key (Places search settings) to get exact and transit times.</div>
+      )}
+      {error === 'failed' && (
+        <div className="travel-note">
+          Couldn’t get exact times{mode === 'walking' ? ' — showing the offline estimate' : ''}. Make sure the
+          “Directions API” is enabled for your Google key, and you’re online.
+        </div>
+      )}
+
+      {hasApiKey() && (
+        <button className="travel-exact-btn" onClick={fetchExact} disabled={loading}>
+          {loading ? 'Getting times…' : exact ? '✓ Google times · refresh' : `Get exact ${mode} times from Google`}
+        </button>
+      )}
+    </div>
+  )
 }
 
 function FitBounds({ markers }) {
@@ -394,6 +494,9 @@ export default function MapView() {
           )}
         </div>
       )}
+
+      {/* Per-day travel times (walking / transit) — day view only */}
+      {!isCity && <TravelSummary stops={dayMarkers} hotel={hotelStart} />}
 
       {/* Activity list below map */}
       <div className={`map-activity-list ${!mapVisible ? 'expanded' : ''}`}>

@@ -745,7 +745,9 @@ a.map-link {
 .city-route-row {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 10px; border: 1px solid var(--gray-border); border-radius: 12px;
-  background: white;
+  background: white; touch-action: pan-y;
+  /* Press-and-hold to drag, so suppress the iOS text selection / callout. */
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
 /* Name flexes to fill the middle; the drag handle, day stepper and delete stay
    fixed-width, so nothing ever overlaps regardless of screen size. */
@@ -753,20 +755,25 @@ a.map-link {
 .city-route-row .city-manage-name { overflow-wrap: anywhere; }
 .city-route-row .day-stepper { flex-shrink: 0; }
 .city-route-row.is-start { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue) inset; }
+/* The card currently being dragged: lifted off the page, following the finger
+   (translate/scale is applied inline as you drag). */
 .city-route-row.dragging {
-  opacity: 0.75; box-shadow: 0 8px 22px rgba(0,0,0,0.18);
-  position: relative; z-index: 5;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.22);
+  border-color: var(--blue);
+  background: #f8fbff;
+  position: relative;
 }
+/* While a reorder is in progress, give the whole list a grabbing cursor. */
+body.reordering { cursor: grabbing; }
+body.reordering .city-route-row:not(.dragging) { opacity: 0.85; }
 
-/* Drag-to-reorder grip. touch-action:none stops the page scrolling while the
-   finger drags a city up or down. */
+/* Drag-to-reorder grip — a visual cue; the whole card is draggable on hold. */
 .city-drag-handle {
-  flex-shrink: 0; width: 28px; height: 38px; padding: 0;
-  border: none; background: transparent; color: var(--text-muted);
+  flex-shrink: 0; width: 24px; height: 38px;
   display: flex; align-items: center; justify-content: center;
-  cursor: grab; touch-action: none; -webkit-user-select: none; user-select: none;
+  color: var(--text-muted); cursor: grab;
 }
-.city-drag-handle:active { cursor: grabbing; color: var(--blue); }
+.city-route-row.dragging .city-drag-handle { cursor: grabbing; color: var(--blue); }
 .city-route-rank {
   width: 22px; height: 22px; flex-shrink: 0; border-radius: 50%;
   background: var(--gray-light); color: var(--text-muted);

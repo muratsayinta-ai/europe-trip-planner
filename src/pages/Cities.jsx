@@ -140,35 +140,88 @@ export default function Cities() {
   const emptyForm = { name: '', country: '', flag: '📍', color: COLORS[0], lat: null, lng: null }
   const [form, setForm] = useState(emptyForm)
 
-  // Drag-to-reorder the city list (works with touch & mouse via Pointer Events).
-  // While dragging the handle, we figure out which row the finger is over and
-  // reorder live, so the cities shuffle under the finger. The first city is the
-  // trip's start, so dragging a city to the top makes it the start.
+  // Drag-to-reorder the city list (touch & mouse via Pointer Events).
+  // Press and hold anywhere on a card to pick it up (a short hold, so quick
+  // swipes still scroll the page and taps on the day/▼/🗑 buttons still work),
+  // then drag up or down. The picked-up card lifts and follows your finger while
+  // the others shuffle underneath. The first city is the trip's start, so
+  // dragging a card to the top makes it the start.
+  const HOLD_MS = 180        // press-and-hold before a drag begins
+  const MOVE_CANCEL = 8      // px of movement during the hold = it's a scroll, not a drag
   const listRef = useRef(null)
-  const dragFrom = useRef(null)
   const [dragId, setDragId] = useState(null)
+  const drag = useRef({ index: null, startY: 0, engaged: false, timer: null, el: null, pointerId: null, grabOffsetY: 0, transform: 0 })
+  const unlockScroll = useRef(null)
 
-  const handleDragStart = (e, index) => {
-    try { e.currentTarget.setPointerCapture(e.pointerId) } catch {}
-    dragFrom.current = index
-    setDragId(cities[index]?.id ?? null)
-  }
-  const handleDragMove = (e) => {
-    if (dragFrom.current == null || !listRef.current) return
-    const rows = [...listRef.current.querySelectorAll('.city-route-row')]
-    const y = e.clientY
-    let target = rows.findIndex(r => {
-      const rect = r.getBoundingClientRect()
-      return y < rect.top + rect.height / 2
-    })
-    if (target === -1) target = rows.length - 1
-    const from = dragFrom.current
-    if (target >= 0 && target !== from) {
-      reorderCities(from, target)
-      dragFrom.current = target
+  const engageDrag = () => {
+    const d = drag.current
+    if (d.index == null || !d.el) return
+    d.engaged = true
+    try { d.el.setPointerCapture(d.pointerId) } catch {}
+    const rect = d.el.getBoundingClientRect()
+    d.grabOffsetY = d.startY - rect.top
+    d.transform = 0
+    setDragId(cities[d.index]?.id ?? null)
+    // Stop the page from scrolling under the finger while a card is held.
+    const prevent = e => e.preventDefault()
+    document.addEventListener('touchmove', prevent, { passive: false })
+    document.body.classList.add('reordering')
+    unlockScroll.current = () => {
+      document.removeEventListener('touchmove', prevent, { passive: false })
+      document.body.classList.remove('reordering')
     }
   }
-  const handleDragEnd = () => { dragFrom.current = null; setDragId(null) }
+
+  const handlePointerDown = (e, index) => {
+    // Let taps on the interactive controls do their thing instead of starting a drag.
+    if (e.target.closest('.day-stepper') || e.target.closest('.action-btn')) return
+    const d = drag.current
+    d.index = index; d.startY = e.clientY; d.engaged = false
+    d.el = e.currentTarget; d.pointerId = e.pointerId
+    clearTimeout(d.timer)
+    d.timer = setTimeout(engageDrag, HOLD_MS)
+  }
+
+  const handlePointerMove = (e) => {
+    const d = drag.current
+    if (d.index == null) return
+    if (!d.engaged) {
+      // Moved before the hold completed → treat as a scroll, abandon the drag.
+      if (Math.abs(e.clientY - d.startY) > MOVE_CANCEL) { clearTimeout(d.timer); d.index = null }
+      return
+    }
+    e.preventDefault?.()
+    const el = d.el
+    if (!el || !listRef.current) return
+    // Make the picked-up card track the finger precisely.
+    const naturalTop = el.getBoundingClientRect().top - d.transform
+    d.transform = (e.clientY - d.grabOffsetY) - naturalTop
+    el.style.transform = `translateY(${d.transform}px) scale(1.03)`
+    el.style.zIndex = '30'
+    // Decide which slot we're hovering over (using each row's natural midpoint).
+    const rows = [...listRef.current.querySelectorAll('.city-route-row')]
+    const mids = rows.map(r => {
+      const rect = r.getBoundingClientRect()
+      const top = r === el ? naturalTop : rect.top
+      return top + rect.height / 2
+    })
+    let target = mids.findIndex(m => e.clientY < m)
+    if (target === -1) target = rows.length - 1
+    const from = d.index
+    if (target >= 0 && target !== from) {
+      reorderCities(from, target)
+      d.index = target
+    }
+  }
+
+  const handlePointerEnd = () => {
+    const d = drag.current
+    clearTimeout(d.timer)
+    if (d.el) { d.el.style.transform = ''; d.el.style.zIndex = '' }
+    if (unlockScroll.current) { unlockScroll.current(); unlockScroll.current = null }
+    d.index = null; d.engaged = false; d.el = null
+    setDragId(null)
+  }
 
   const totalDays = cities.reduce((s, c) => s + cityDayCount(c.id), 0)
 
@@ -289,18 +342,15 @@ export default function Cities() {
           const days = cityDayCount(c.id)
           const isStart = i === 0
           return (
-            <div key={c.id} className={`city-route-row ${isStart ? 'is-start' : ''} ${dragId === c.id ? 'dragging' : ''}`}>
-              <button
-                type="button"
-                className="city-drag-handle"
-                onPointerDown={e => handleDragStart(e, i)}
-                onPointerMove={handleDragMove}
-                onPointerUp={handleDragEnd}
-                onPointerCancel={handleDragEnd}
-                aria-label={`Drag to reorder ${c.name}`}
-              >
-                <DragIcon />
-              </button>
+            <div
+              key={c.id}
+              className={`city-route-row ${isStart ? 'is-start' : ''} ${dragId === c.id ? 'dragging' : ''}`}
+              onPointerDown={e => handlePointerDown(e, i)}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerEnd}
+              onPointerCancel={handlePointerEnd}
+            >
+              <span className="city-drag-handle" aria-hidden="true"><DragIcon /></span>
               <div className="city-route-rank">{i + 1}</div>
               <span className="city-manage-flag">{c.flag}</span>
               <div className="city-manage-info">

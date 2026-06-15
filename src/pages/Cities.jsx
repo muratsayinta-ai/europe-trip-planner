@@ -150,7 +150,7 @@ function DragIcon() {
 }
 
 export default function Cities() {
-  const { cities, places, hotels, cityDayCount, addCity, removeCity, setCityDayCount, reorderCities } = useData()
+  const { cities, places, hotels, cityDayCount, addCity, removeCity, setCityDayCount, reorderCities, updateCity } = useData()
   const [adding, setAdding] = useState(false)
   const [showMap, setShowMap] = useState(true)
   const [mapFull, setMapFull] = useState(false)
@@ -200,7 +200,7 @@ export default function Cities() {
 
   const handlePointerDown = (e, index) => {
     // Let taps on the interactive controls do their thing instead of starting a drag.
-    if (e.target.closest('.day-stepper') || e.target.closest('.action-btn')) return
+    if (e.target.closest('.day-stepper') || e.target.closest('.action-btn') || e.target.closest('.bypass-toggle')) return
     const d = drag.current
     d.from = index; d.startY = e.clientY; d.engaged = false
     d.el = e.currentTarget; d.pointerId = e.pointerId
@@ -286,6 +286,15 @@ export default function Cities() {
 
   const handleRemove = (c) => {
     if (confirm(`Remove ${c.name} from your trip? Its days will be deleted.`)) removeCity(c.id)
+  }
+
+  // Toggling bypass on a city: a pass-through city gets 0 days automatically;
+  // turning it back to a normal stay restores it to 1 day.
+  const toggleBypass = (c) => {
+    const next = !c.bypass
+    updateCity(c.id, { bypass: next })
+    if (next) setCityDayCount(c.id, 0)
+    else if (cityDayCount(c.id) === 0) setCityDayCount(c.id, 1)
   }
 
   const closeAdd = () => { setAdding(false); setForm(emptyForm) }
@@ -381,7 +390,7 @@ export default function Cities() {
           return (
             <div
               key={c.id}
-              className={`city-route-row ${isStart ? 'is-start' : ''} ${dndFrom === i ? 'dragging' : ''}`}
+              className={`city-route-row ${isStart ? 'is-start' : ''} ${c.bypass ? 'is-bypass' : ''} ${dndFrom === i ? 'dragging' : ''}`}
               style={dndFrom === i
                 ? { zIndex: 30 }
                 : { transform: `translateY(${shiftFor(i)}px)`, transition: 'transform .18s ease' }}
@@ -397,14 +406,23 @@ export default function Cities() {
                 <div className="city-manage-name">
                   {c.name}
                   {isStart && <span className="start-badge"><StarIcon /> Start</span>}
+                  {c.bypass && <span className="bypass-badge">⤳ Bypass</span>}
                 </div>
                 {c.country && <div className="city-manage-country">{c.country}</div>}
+                <label className="bypass-toggle">
+                  <input
+                    type="checkbox"
+                    checked={!!c.bypass}
+                    onChange={() => toggleBypass(c)}
+                  />
+                  <span>Bypass — passing through, not staying</span>
+                </label>
               </div>
 
-              <div className="day-stepper" aria-label={`${days} ${days === 1 ? 'day' : 'days'} in ${c.name}`}>
-                <button type="button" onClick={() => setCityDayCount(c.id, days + 1)} aria-label="More days"><UpIcon /></button>
+              <div className={`day-stepper ${c.bypass ? 'disabled' : ''}`} aria-label={c.bypass ? `Bypass — 0 days in ${c.name}` : `${days} ${days === 1 ? 'day' : 'days'} in ${c.name}`}>
+                <button type="button" onClick={() => setCityDayCount(c.id, days + 1)} disabled={c.bypass} aria-label="More days"><UpIcon /></button>
                 <span className="day-stepper-val">{days}</span>
-                <button type="button" onClick={() => setCityDayCount(c.id, days - 1)} disabled={days <= 1} aria-label="Fewer days"><DownIcon /></button>
+                <button type="button" onClick={() => setCityDayCount(c.id, days - 1)} disabled={c.bypass || days <= 1} aria-label="Fewer days"><DownIcon /></button>
               </div>
 
               <button className="action-btn delete" onClick={() => handleRemove(c)} aria-label="Remove city"><TrashIcon /></button>

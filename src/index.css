@@ -742,6 +742,7 @@ a.map-link {
   display: flex; align-items: center; justify-content: center;
 }
 .day-stepper button:disabled { opacity: 0.35; cursor: default; }
+.day-stepper.disabled { opacity: 0.5; }
 .day-stepper-val {
   padding: 3px 0; font-size: 0.9rem; font-weight: 800; line-height: 1;
   text-align: center; background: white;
@@ -881,6 +882,31 @@ body.reordering .city-route-row:not(.dragging) { opacity: 0.85; }
   background: var(--blue); color: white; font-size: 0.62rem; font-weight: 800;
   vertical-align: middle;
 }
+/* Bypass: a city you drive through without staying overnight. */
+.bypass-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin-left: 6px; padding: 1px 7px; border-radius: 999px;
+  background: #f59e0b; color: white; font-size: 0.62rem; font-weight: 800;
+  vertical-align: middle;
+}
+.bypass-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 5px; cursor: pointer;
+  font-size: 0.7rem; color: var(--text-muted);
+  -webkit-user-select: none; user-select: none;
+}
+.bypass-toggle input {
+  width: 16px; height: 16px; flex-shrink: 0;
+  accent-color: #f59e0b; cursor: pointer;
+}
+.city-route-row.is-bypass {
+  border-color: #f59e0b;
+  background: #fffaf0;
+  border-style: dashed;
+}
+.city-route-row.is-bypass .city-route-rank { background: #f59e0b; color: white; }
+.city-route-row.is-bypass .bypass-toggle { color: #b45309; font-weight: 700; }
+
 .city-route-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .move-col { display: flex; flex-direction: column; gap: 2px; }
 .move-btn {

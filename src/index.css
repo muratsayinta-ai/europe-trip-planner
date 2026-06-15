@@ -675,16 +675,20 @@ a.map-link {
 .city-manage-name { font-weight: 700; font-size: 0.86rem; }
 .city-manage-country { font-size: 0.72rem; color: var(--text-muted); }
 .day-stepper {
-  display: flex; align-items: center; gap: 0; flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: stretch; gap: 0; flex-shrink: 0;
   border: 1px solid var(--gray-border); border-radius: 8px; overflow: hidden;
 }
 .day-stepper button {
-  width: 28px; height: 30px; border: none; background: var(--gray-light);
-  color: var(--text); font-size: 1.1rem; font-weight: 700; cursor: pointer;
+  width: 36px; height: 22px; border: none; background: var(--gray-light);
+  color: var(--text); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
 }
 .day-stepper button:disabled { opacity: 0.35; cursor: default; }
-.day-stepper-val { padding: 0 8px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; min-width: 52px; text-align: center; }
+.day-stepper-val {
+  padding: 3px 0; font-size: 0.9rem; font-weight: 800; line-height: 1;
+  text-align: center; background: white;
+  border-top: 1px solid var(--gray-border); border-bottom: 1px solid var(--gray-border);
+}
 .color-swatches { display: flex; gap: 8px; margin-top: 4px; }
 .color-swatch {
   width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent;
@@ -739,11 +743,30 @@ a.map-link {
 .add-city-details summary::-webkit-details-marker { display: none; }
 .add-city-details summary::before { content: '⚙ '; }
 .city-route-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px; border: 1px solid var(--gray-border); border-radius: 12px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border: 1px solid var(--gray-border); border-radius: 12px;
   background: white;
 }
+/* Name flexes to fill the middle; the drag handle, day stepper and delete stay
+   fixed-width, so nothing ever overlaps regardless of screen size. */
+.city-route-row .city-manage-info { flex: 1 1 auto; min-width: 0; }
+.city-route-row .city-manage-name { overflow-wrap: anywhere; }
+.city-route-row .day-stepper { flex-shrink: 0; }
 .city-route-row.is-start { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue) inset; }
+.city-route-row.dragging {
+  opacity: 0.75; box-shadow: 0 8px 22px rgba(0,0,0,0.18);
+  position: relative; z-index: 5;
+}
+
+/* Drag-to-reorder grip. touch-action:none stops the page scrolling while the
+   finger drags a city up or down. */
+.city-drag-handle {
+  flex-shrink: 0; width: 28px; height: 38px; padding: 0;
+  border: none; background: transparent; color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center;
+  cursor: grab; touch-action: none; -webkit-user-select: none; user-select: none;
+}
+.city-drag-handle:active { cursor: grabbing; color: var(--blue); }
 .city-route-rank {
   width: 22px; height: 22px; flex-shrink: 0; border-radius: 50%;
   background: var(--gray-light); color: var(--text-muted);

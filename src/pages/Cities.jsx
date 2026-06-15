@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, Tooltip, Polyline, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
@@ -128,14 +128,47 @@ function DownIcon() {
 function StarIcon() {
   return <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
 }
+function DragIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+}
 
 export default function Cities() {
-  const { cities, places, hotels, cityDayCount, addCity, removeCity, setCityDayCount, reorderCities, setStartCity } = useData()
+  const { cities, places, hotels, cityDayCount, addCity, removeCity, setCityDayCount, reorderCities } = useData()
   const [adding, setAdding] = useState(false)
   const [showMap, setShowMap] = useState(true)
   const [showSuggest, setShowSuggest] = useState(false)
   const emptyForm = { name: '', country: '', flag: '📍', color: COLORS[0], lat: null, lng: null }
   const [form, setForm] = useState(emptyForm)
+
+  // Drag-to-reorder the city list (works with touch & mouse via Pointer Events).
+  // While dragging the handle, we figure out which row the finger is over and
+  // reorder live, so the cities shuffle under the finger. The first city is the
+  // trip's start, so dragging a city to the top makes it the start.
+  const listRef = useRef(null)
+  const dragFrom = useRef(null)
+  const [dragId, setDragId] = useState(null)
+
+  const handleDragStart = (e, index) => {
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch {}
+    dragFrom.current = index
+    setDragId(cities[index]?.id ?? null)
+  }
+  const handleDragMove = (e) => {
+    if (dragFrom.current == null || !listRef.current) return
+    const rows = [...listRef.current.querySelectorAll('.city-route-row')]
+    const y = e.clientY
+    let target = rows.findIndex(r => {
+      const rect = r.getBoundingClientRect()
+      return y < rect.top + rect.height / 2
+    })
+    if (target === -1) target = rows.length - 1
+    const from = dragFrom.current
+    if (target >= 0 && target !== from) {
+      reorderCities(from, target)
+      dragFrom.current = target
+    }
+  }
+  const handleDragEnd = () => { dragFrom.current = null; setDragId(null) }
 
   const totalDays = cities.reduce((s, c) => s + cityDayCount(c.id), 0)
 
@@ -211,8 +244,9 @@ export default function Cities() {
       <div className="place-card" style={{ borderLeftColor: '#3b82f6', marginBottom: 16 }}>
         <div className="place-name">🗺️ Your Route</div>
         <div className="place-desc">
-          Cities are visited in this order. The first one is your <strong>start</strong>.
-          Reorder with the arrows, set how many days to spend, and add cities one by one.
+          Cities are visited in this order — the first one is your <strong>start</strong>.
+          Drag the <strong>⠿</strong> handle to reorder, tap <strong>▲ / ▼</strong> to change
+          how many days you spend, and add cities one by one.
           Total: <strong>{totalDays} {totalDays === 1 ? 'day' : 'days'}</strong>.
         </div>
       </div>
@@ -250,12 +284,23 @@ export default function Cities() {
         </div>
       )}
 
-      <div className="city-manage-list">
+      <div className="city-manage-list" ref={listRef}>
         {cities.map((c, i) => {
           const days = cityDayCount(c.id)
           const isStart = i === 0
           return (
-            <div key={c.id} className={`city-route-row ${isStart ? 'is-start' : ''}`}>
+            <div key={c.id} className={`city-route-row ${isStart ? 'is-start' : ''} ${dragId === c.id ? 'dragging' : ''}`}>
+              <button
+                type="button"
+                className="city-drag-handle"
+                onPointerDown={e => handleDragStart(e, i)}
+                onPointerMove={handleDragMove}
+                onPointerUp={handleDragEnd}
+                onPointerCancel={handleDragEnd}
+                aria-label={`Drag to reorder ${c.name}`}
+              >
+                <DragIcon />
+              </button>
               <div className="city-route-rank">{i + 1}</div>
               <span className="city-manage-flag">{c.flag}</span>
               <div className="city-manage-info">
@@ -266,22 +311,13 @@ export default function Cities() {
                 {c.country && <div className="city-manage-country">{c.country}</div>}
               </div>
 
-              <div className="day-stepper">
-                <button type="button" onClick={() => setCityDayCount(c.id, days - 1)} disabled={days <= 1} aria-label="Fewer days">−</button>
-                <span className="day-stepper-val">{days} {days === 1 ? 'day' : 'days'}</span>
-                <button type="button" onClick={() => setCityDayCount(c.id, days + 1)} aria-label="More days">+</button>
+              <div className="day-stepper" aria-label={`${days} ${days === 1 ? 'day' : 'days'} in ${c.name}`}>
+                <button type="button" onClick={() => setCityDayCount(c.id, days + 1)} aria-label="More days"><UpIcon /></button>
+                <span className="day-stepper-val">{days}</span>
+                <button type="button" onClick={() => setCityDayCount(c.id, days - 1)} disabled={days <= 1} aria-label="Fewer days"><DownIcon /></button>
               </div>
 
-              <div className="city-route-actions">
-                <div className="move-col">
-                  <button type="button" className="move-btn" onClick={() => reorderCities(i, i - 1)} disabled={i === 0} aria-label="Move up"><UpIcon /></button>
-                  <button type="button" className="move-btn" onClick={() => reorderCities(i, i + 1)} disabled={i === cities.length - 1} aria-label="Move down"><DownIcon /></button>
-                </div>
-                {!isStart && (
-                  <button type="button" className="set-start-btn" onClick={() => setStartCity(c.id)} title="Make this the starting city">Set start</button>
-                )}
-                <button className="action-btn delete" onClick={() => handleRemove(c)} aria-label="Remove city"><TrashIcon /></button>
-              </div>
+              <button className="action-btn delete" onClick={() => handleRemove(c)} aria-label="Remove city"><TrashIcon /></button>
             </div>
           )
         })}

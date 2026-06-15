@@ -109,6 +109,17 @@ export function DataProvider({ children }) {
     if (!syncEnabled) { ready.current = true; return }
     let cancelled = false
     let unsub = () => {}
+
+    // Pull the shared copy and apply it if it's newer than what we have.
+    const refresh = async () => {
+      const remote = await fetchTrip(tripId)
+      if (cancelled || !remote) return
+      if (remote.rev > revRef.current) {
+        revRef.current = remote.rev; save('trip_rev', remote.rev)
+        applySnapshot(remote.data)
+      }
+    }
+
     ;(async () => {
       const remote = await fetchTrip(tripId)
       if (cancelled) return
@@ -128,7 +139,20 @@ export function DataProvider({ children }) {
       setSyncStatus('synced')
       ready.current = true
     })()
-    return () => { cancelled = true; unsub() }
+
+    // Fallbacks for when realtime is slow or the socket got suspended (common on
+    // iOS when the app backgrounds): poll periodically, and re-pull whenever the
+    // app comes back to the foreground.
+    const poll = setInterval(refresh, 15000)
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh() }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      cancelled = true
+      unsub()
+      clearInterval(poll)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

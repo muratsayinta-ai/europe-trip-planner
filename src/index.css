@@ -52,43 +52,99 @@ body {
 }
 .sync-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
 
+/* Mobile: left slide-in drawer. Hidden off-screen until .open. */
 .bottom-nav {
   position: fixed;
+  top: 0;
   bottom: 0;
   left: 0;
-  right: 0;
-  width: 100%;
+  width: 76%;
+  max-width: 280px;
   background: white;
-  border-top: 1px solid var(--gray-border);
-  display: flex;
-  padding-bottom: env(safe-area-inset-bottom);
-  z-index: 100;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
-}
-.nav-btn {
-  flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 16px 12px calc(16px + env(safe-area-inset-bottom));
+  border-right: 1px solid var(--gray-border);
+  box-shadow: 2px 0 18px rgba(0,0,0,0.18);
+  z-index: 1000;
+  overflow-y: auto;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+}
+.bottom-nav.open { transform: translateX(0); }
+
+.nav-brand {
+  display: flex;
   align-items: center;
-  gap: 3px;
-  padding: 10px 0;
+  justify-content: space-between;
+  font-size: 1.05rem;
+  font-weight: 800;
+  padding: 6px 8px 14px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--gray-border);
+}
+.nav-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--gray-light);
+  border-radius: 8px;
+  color: var(--gray);
+  cursor: pointer;
+}
+.nav-close svg { width: 18px; height: 18px; }
+
+.nav-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 999;
+}
+
+.menu-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: rgba(255,255,255,0.18);
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.menu-toggle svg { width: 20px; height: 20px; }
+
+.nav-btn {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
+  width: 100%;
+  padding: 13px 14px;
   border: none;
   background: none;
   cursor: pointer;
-  font-size: 0.6rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--gray);
-  transition: color 0.15s;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  border-radius: 10px;
+  transition: background 0.15s, color 0.15s;
 }
-.nav-btn.active { color: var(--blue); }
+.nav-btn.active { color: var(--blue); background: var(--blue-light); }
 .nav-btn svg { width: 22px; height: 22px; }
 
 .content {
   flex: 1;
   padding: 16px;
-  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
   overflow-y: auto;
 }
 
@@ -710,6 +766,9 @@ a.map-link {
   height: 240px; border-radius: 14px; overflow: hidden;
   border: 1px solid var(--gray-border); margin-bottom: 14px;
   position: relative;
+  /* Own stacking context so Leaflet's internal z-indexes stay contained and the
+     map never paints over the sticky header / nav while the page scrolls. */
+  z-index: 0;
 }
 .cities-map .leaflet-container { background: #e8eef3; }
 .cities-map-empty {
@@ -893,6 +952,9 @@ body.reordering .city-route-row:not(.dragging) { opacity: 0.85; }
   flex: 1;
   position: relative;
   min-height: 0;
+  /* Own stacking context so Leaflet's panes/controls stay contained and never
+     paint over the sticky header or nav drawer while the page scrolls. */
+  z-index: 0;
 }
 .map-container .leaflet-container {
   width: 100%;
@@ -978,10 +1040,14 @@ body.reordering .city-route-row:not(.dragging) { opacity: 0.85; }
   .app { margin-left: 232px; height: 100vh; }
   .header { flex: 0 0 auto; }
 
-  /* Bottom nav → left sidebar */
+  /* Drawer chrome is mobile-only; the sidebar is always visible on desktop. */
+  .menu-toggle, .nav-backdrop, .nav-brand { display: none; }
+
+  /* Bottom nav → persistent left sidebar */
   .bottom-nav {
     top: 0; bottom: 0; left: 0; right: auto;
     width: 232px; height: 100vh;
+    max-width: none;
     flex-direction: column;
     justify-content: flex-start;
     gap: 4px;
@@ -990,6 +1056,7 @@ body.reordering .city-route-row:not(.dragging) { opacity: 0.85; }
     border-right: 1px solid var(--gray-border);
     box-shadow: 2px 0 12px rgba(0,0,0,0.04);
     overflow-y: auto;
+    transform: none;
   }
   .nav-btn {
     flex: 0 0 auto;

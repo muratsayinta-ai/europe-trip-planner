@@ -801,6 +801,15 @@ body.reordering .city-route-row:not(.dragging) { opacity: 0.85; }
   font-size: 0.7rem; font-weight: 700; cursor: pointer;
 }
 
+/* Video-count badge on the Videos page city tabs. */
+.tab-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 16px; height: 16px; margin-left: 5px; padding: 0 4px;
+  border-radius: 999px; background: var(--blue); color: white;
+  font-size: 0.62rem; font-weight: 800; line-height: 1; vertical-align: middle;
+}
+.city-tab.active .tab-count { background: white; color: var(--blue); }
+
 /* --- Suggest cities --- */
 .city-add-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .city-add-actions .btn-suggest { flex: 1; min-width: 150px; }

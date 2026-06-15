@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useData } from '../context/DataContext'
 import Modal from '../components/Modal'
 
@@ -75,11 +75,27 @@ function VideoForm({ initial, cities, defaultCityId, onSave, onClose }) {
 
 export default function Videos() {
   const { cities, videos, addVideo, updateVideo, deleteVideo } = useData()
-  const [activeCity, setActiveCity] = useState(cities[0]?.id || '')
+  const firstWithVideos = cities.find(c => (videos[c.id] || []).length)?.id
+  const [activeCity, setActiveCity] = useState(firstWithVideos || cities[0]?.id || '')
+  const [modal, setModal] = useState(null)
+
+  // Keep the active tab valid if cities change.
   useEffect(() => {
     if (cities.length && !cities.some(c => c.id === activeCity)) setActiveCity(cities[0].id)
   }, [cities, activeCity])
-  const [modal, setModal] = useState(null)
+
+  // On first load, jump to the first city that actually has videos so they're
+  // not hidden behind a city tab. Videos may arrive a moment later via sync, so
+  // this runs until it finds some — but once the user taps a tab themselves
+  // (selectCity), we stop auto-jumping and respect their choice.
+  const userPicked = useRef(false)
+  useEffect(() => {
+    if (userPicked.current) return
+    const target = cities.find(c => (videos[c.id] || []).length)
+    if (target && target.id !== activeCity) setActiveCity(target.id)
+  }, [cities, videos, activeCity])
+
+  const selectCity = (id) => { userPicked.current = true; setActiveCity(id) }
 
   const cityName = cities.find(c => c.id === activeCity)?.name
   // Ordered by watch amount (view count), most-watched first.
@@ -96,7 +112,7 @@ export default function Videos() {
   const handleAdd = ({ cityId, ...video }) => {
     const target = cityId || activeCity
     addVideo(target, video)
-    if (target !== activeCity) setActiveCity(target)
+    if (target !== activeCity) selectCity(target)
   }
 
   // On edit, if the linked city changed, move the video: remove from the old
@@ -108,18 +124,22 @@ export default function Videos() {
     } else {
       deleteVideo(oldCity, id)
       addVideo(target, video)
-      setActiveCity(target)
+      selectCity(target)
     }
   }
 
   return (
     <div className="content">
       <div className="city-tabs">
-        {cities.map(c => (
-          <button key={c.id} className={`city-tab ${activeCity === c.id ? 'active' : ''}`} onClick={() => setActiveCity(c.id)}>
-            {c.flag} {c.name}
-          </button>
-        ))}
+        {cities.map(c => {
+          const n = (videos[c.id] || []).length
+          return (
+            <button key={c.id} className={`city-tab ${activeCity === c.id ? 'active' : ''}`} onClick={() => selectCity(c.id)}>
+              {c.flag} {c.name}
+              {n > 0 && <span className="tab-count">{n}</span>}
+            </button>
+          )
+        })}
       </div>
 
       <div className="filter-row">

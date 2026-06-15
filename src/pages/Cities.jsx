@@ -143,25 +143,33 @@ export default function Cities() {
   // Drag-to-reorder the city list (touch & mouse via Pointer Events).
   // Press and hold anywhere on a card to pick it up (a short hold, so quick
   // swipes still scroll the page and taps on the day/▼/🗑 buttons still work),
-  // then drag up or down. The picked-up card lifts and follows your finger while
-  // the others shuffle underneath. The first city is the trip's start, so
-  // dragging a card to the top makes it the start.
+  // then drag up or down. The picked-up card lifts and follows your finger; the
+  // other cards animate to open a gap where it will drop, and the actual reorder
+  // is committed once on release — so the gesture behaves the same up and down.
+  // The first city is the trip's start, so dragging a card to the top makes it
+  // the start.
   const HOLD_MS = 180        // press-and-hold before a drag begins
   const MOVE_CANCEL = 8      // px of movement during the hold = it's a scroll, not a drag
   const listRef = useRef(null)
-  const [dragId, setDragId] = useState(null)
-  const drag = useRef({ index: null, startY: 0, engaged: false, timer: null, el: null, pointerId: null, grabOffsetY: 0, transform: 0 })
+  const drag = useRef({ from: null, to: null, startY: 0, el: null, pointerId: null, timer: null, engaged: false, tops: [], heights: [], rowH: 0 })
+  const [dndFrom, setDndFrom] = useState(null) // the card being dragged (its original index)
+  const [dndTo, setDndTo] = useState(null)     // where it would drop (insertion index)
   const unlockScroll = useRef(null)
 
   const engageDrag = () => {
     const d = drag.current
-    if (d.index == null || !d.el) return
+    if (d.from == null || !d.el || !listRef.current) return
     d.engaged = true
     try { d.el.setPointerCapture(d.pointerId) } catch {}
-    const rect = d.el.getBoundingClientRect()
-    d.grabOffsetY = d.startY - rect.top
-    d.transform = 0
-    setDragId(cities[d.index]?.id ?? null)
+    // Snapshot each card's natural position so hit-testing stays stable while the
+    // others slide around to preview the drop.
+    const rows = [...listRef.current.querySelectorAll('.city-route-row')]
+    d.tops = rows.map(r => r.getBoundingClientRect().top)
+    d.heights = rows.map(r => r.getBoundingClientRect().height)
+    const gap = rows.length > 1 ? d.tops[1] - (d.tops[0] + d.heights[0]) : 0
+    d.rowH = d.heights[d.from] + gap
+    d.to = d.from
+    setDndFrom(d.from); setDndTo(d.from)
     // Stop the page from scrolling under the finger while a card is held.
     const prevent = e => e.preventDefault()
     document.addEventListener('touchmove', prevent, { passive: false })
@@ -176,7 +184,7 @@ export default function Cities() {
     // Let taps on the interactive controls do their thing instead of starting a drag.
     if (e.target.closest('.day-stepper') || e.target.closest('.action-btn')) return
     const d = drag.current
-    d.index = index; d.startY = e.clientY; d.engaged = false
+    d.from = index; d.startY = e.clientY; d.engaged = false
     d.el = e.currentTarget; d.pointerId = e.pointerId
     clearTimeout(d.timer)
     d.timer = setTimeout(engageDrag, HOLD_MS)
@@ -184,43 +192,42 @@ export default function Cities() {
 
   const handlePointerMove = (e) => {
     const d = drag.current
-    if (d.index == null) return
+    if (d.from == null) return
     if (!d.engaged) {
       // Moved before the hold completed → treat as a scroll, abandon the drag.
-      if (Math.abs(e.clientY - d.startY) > MOVE_CANCEL) { clearTimeout(d.timer); d.index = null }
+      if (Math.abs(e.clientY - d.startY) > MOVE_CANCEL) { clearTimeout(d.timer); d.from = null }
       return
     }
     e.preventDefault?.()
-    const el = d.el
-    if (!el || !listRef.current) return
-    // Make the picked-up card track the finger precisely.
-    const naturalTop = el.getBoundingClientRect().top - d.transform
-    d.transform = (e.clientY - d.grabOffsetY) - naturalTop
-    el.style.transform = `translateY(${d.transform}px) scale(1.03)`
-    el.style.zIndex = '30'
-    // Decide which slot we're hovering over (using each row's natural midpoint).
-    const rows = [...listRef.current.querySelectorAll('.city-route-row')]
-    const mids = rows.map(r => {
-      const rect = r.getBoundingClientRect()
-      const top = r === el ? naturalTop : rect.top
-      return top + rect.height / 2
-    })
-    let target = mids.findIndex(m => e.clientY < m)
-    if (target === -1) target = rows.length - 1
-    const from = d.index
-    if (target >= 0 && target !== from) {
-      reorderCities(from, target)
-      d.index = target
+    if (!d.el) return
+    // The picked-up card simply follows the finger from where it was grabbed.
+    // Its own slot never moves during the drag, so up and down feel identical.
+    d.el.style.transform = `translateY(${e.clientY - d.startY}px) scale(1.03)`
+    // Insertion index = how many other cards have their midpoint above the finger.
+    let to = 0
+    for (let i = 0; i < d.tops.length; i++) {
+      if (i === d.from) continue
+      if (e.clientY > d.tops[i] + d.heights[i] / 2) to++
     }
+    if (to !== d.to) { d.to = to; setDndTo(to) }
   }
 
   const handlePointerEnd = () => {
     const d = drag.current
     clearTimeout(d.timer)
+    if (d.engaged && d.from != null && d.to != null && d.to !== d.from) reorderCities(d.from, d.to)
     if (d.el) { d.el.style.transform = ''; d.el.style.zIndex = '' }
     if (unlockScroll.current) { unlockScroll.current(); unlockScroll.current = null }
-    d.index = null; d.engaged = false; d.el = null
-    setDragId(null)
+    d.from = null; d.to = null; d.engaged = false; d.el = null
+    setDndFrom(null); setDndTo(null)
+  }
+
+  // How far each (non-dragged) card slides to open the gap at the drop spot.
+  const shiftFor = (i) => {
+    if (dndFrom == null || dndTo == null || i === dndFrom) return 0
+    const pos = i > dndFrom ? i - 1 : i          // its index once the dragged card is lifted out
+    const newSlot = pos >= dndTo ? pos + 1 : pos // make room for the dragged card at dndTo
+    return (newSlot - i) * (drag.current.rowH || 0)
   }
 
   const totalDays = cities.reduce((s, c) => s + cityDayCount(c.id), 0)
@@ -344,7 +351,10 @@ export default function Cities() {
           return (
             <div
               key={c.id}
-              className={`city-route-row ${isStart ? 'is-start' : ''} ${dragId === c.id ? 'dragging' : ''}`}
+              className={`city-route-row ${isStart ? 'is-start' : ''} ${dndFrom === i ? 'dragging' : ''}`}
+              style={dndFrom === i
+                ? { zIndex: 30 }
+                : { transform: `translateY(${shiftFor(i)}px)`, transition: 'transform .18s ease' }}
               onPointerDown={e => handlePointerDown(e, i)}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerEnd}

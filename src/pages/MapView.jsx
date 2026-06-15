@@ -89,7 +89,8 @@ function TravelSummary({ stops, hotel }) {
       const res = await googleLegs(points, mode)
       setCache(c => ({ ...c, [cacheKey]: res }))
     } catch (e) {
-      setError(e.message === 'no-key' ? 'no-key' : 'failed')
+      const m = e.message
+      setError(m === 'no-key' || m === 'not-enabled' ? m : 'failed')
     } finally {
       setLoading(false)
     }
@@ -132,10 +133,14 @@ function TravelSummary({ stops, hotel }) {
       {error === 'no-key' && (
         <div className="travel-note">Add a Google API key (Places search settings) to get exact and transit times.</div>
       )}
+      {error === 'not-enabled' && (
+        <div className="travel-note">
+          Enable the “Routes API” for your Google key in Google Cloud Console, then try again.
+        </div>
+      )}
       {error === 'failed' && (
         <div className="travel-note">
-          Couldn’t get exact times{mode === 'walking' ? ' — showing the offline estimate' : ''}. Make sure the
-          “Directions API” is enabled for your Google key, and you’re online.
+          Couldn’t get exact times{mode === 'walking' ? ' — showing the offline estimate' : ''}. Check your connection and try again.
         </div>
       )}
 

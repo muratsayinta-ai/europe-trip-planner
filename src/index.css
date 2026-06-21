@@ -400,6 +400,10 @@ body {
   background: var(--blue); color: white; font-size: 0.7rem; font-weight: 800;
   padding: 2px 9px; border-radius: 999px;
 }
+.food-day-date {
+  background: var(--blue-light); color: var(--blue);
+  font-size: 0.68rem; font-weight: 800; padding: 2px 8px; border-radius: 999px;
+}
 .food-day-city { font-weight: 800; font-size: 0.92rem; }
 .food-day-count { margin-left: auto; font-size: 0.72rem; color: var(--text-muted); }
 .food-day-empty { font-size: 0.78rem; color: var(--text-muted); padding: 2px 0 6px; }
@@ -1106,6 +1110,7 @@ body.reordering .city-route-row:not(.dragging) { opacity: 0.85; }
 }
 .pill-num { font-weight: 700; }
 .pill-city { font-size: 1rem; }
+.pill-date { font-size: 0.66rem; font-weight: 700; opacity: 0.85; }
 
 .map-day-bar {
   display: flex;

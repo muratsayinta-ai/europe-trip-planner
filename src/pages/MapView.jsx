@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css'
 import { useData } from '../context/DataContext'
 import ReorderList from '../components/ReorderList'
 import { estimateLeg, googleLegs, hasApiKey, fmtKm, fmtMin } from '../lib/travel'
+import { fmtDayDate } from '../lib/dates'
 
 // Fix leaflet default icon paths broken by bundlers
 delete L.Icon.Default.prototype._getIconUrl
@@ -229,7 +230,7 @@ const keyOf = a => a.name
 const DAY_PALETTE = ['#2563eb', '#7c3aed', '#f59e0b', '#10b981', '#ef4444', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#0ea5e9']
 
 export default function MapView() {
-  const { cities, itinerary, places, optimizeDay, reorderActivity, hotelAnchor, setPlaceDay } = useData()
+  const { cities, itinerary, places, optimizeDay, reorderActivity, hotelAnchor, setPlaceDay, dateForDay } = useData()
   const [groupMode, setGroupMode] = useState('day') // 'day' | 'city'
   const [selectedDay, setSelectedDay] = useState(itinerary[0]?.day || 1)
   const tripCityIds = useMemo(() => [...new Set(itinerary.map(d => d.city))], [itinerary])
@@ -378,6 +379,7 @@ export default function MapView() {
             >
               <span className="pill-num">{d.day}</span>
               <span className="pill-city">{c?.flag}</span>
+              {dateForDay(d.day) && <span className="pill-date">{fmtDayDate(dateForDay(d.day)).replace(/,/, '')}</span>}
             </button>
           )
         })}
@@ -406,7 +408,7 @@ export default function MapView() {
             </>
           ) : (
             <>
-              <span className="map-day-title">{dayCity?.flag} Day {selectedDay} — {day?.title}</span>
+              <span className="map-day-title">{dayCity?.flag} Day {selectedDay}{dateForDay(selectedDay) ? ` · ${fmtDayDate(dateForDay(selectedDay))}` : ''} — {day?.title}</span>
               <span className="map-day-city">{dayCity?.name}, {dayCity?.country}</span>
             </>
           )}

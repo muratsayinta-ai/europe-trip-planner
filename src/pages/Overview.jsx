@@ -1,15 +1,17 @@
 import { useData } from '../context/DataContext'
+import { fmtFullDate } from '../lib/dates'
 
 export default function Overview() {
-  const { cities, places, cityDayCount } = useData()
+  const { cities, places, cityDayCount, startDate, dateForDay, endDate } = useData()
   const totalPlaces = Object.values(places).flat().length
   const totalDays = cities.reduce((s, c) => s + cityDayCount(c.id), 0)
+  const dateRange = startDate ? `${fmtFullDate(dateForDay(1))} – ${fmtFullDate(endDate)}` : null
 
   return (
     <div className="content">
       <div className="overview-card">
         <h2>🌍 Europe Family Trip</h2>
-        <p>July 2026 · 2 adults + kids</p>
+        <p>{dateRange || 'July 2026'} · 2 adults + kids</p>
         <div className="overview-stats">
           <div className="stat">
             <div className="stat-num">{cities.length}</div>

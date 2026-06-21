@@ -249,6 +249,17 @@ body {
   font-size: 0.85rem;
   flex-shrink: 0;
 }
+/* Cross-page jump link (Places ⇄ Plan) */
+.page-jump {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%; margin-bottom: 12px;
+  padding: 10px 14px; border-radius: 10px;
+  border: 1.5px solid var(--blue); background: var(--blue-light); color: var(--blue);
+  font-size: 0.84rem; font-weight: 800; cursor: pointer; text-align: left;
+}
+.page-jump-arrow { margin-left: auto; font-size: 1rem; }
+.page-jump:active { opacity: 0.85; }
+
 .day-number-col {
   display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0;
 }

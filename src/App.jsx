@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { DataProvider, useData } from './context/DataContext'
+import { NavContext } from './context/NavContext'
 import Overview from './pages/Overview'
 import Cities from './pages/Cities'
 import Places from './pages/Places'
@@ -13,9 +14,9 @@ const tabs = [
   { id: 'overview', label: 'Overview', icon: OverviewIcon },
   { id: 'cities', label: 'Cities', icon: GlobeIcon },
   { id: 'places', label: 'Places', icon: StarIcon },
+  { id: 'plan', label: 'Plan', icon: CalendarIcon },
   { id: 'map', label: 'Map', icon: MapPinIcon },
   { id: 'food', label: 'Food', icon: FoodIcon },
-  { id: 'plan', label: 'Plan', icon: CalendarIcon },
   { id: 'stay', label: 'Stay', icon: HotelIcon },
   { id: 'videos', label: 'Videos', icon: VideoIcon },
 ]
@@ -110,7 +111,9 @@ export default function App() {
           </div>
           <p>{sub}</p>
         </div>
-        <Page />
+        <NavContext.Provider value={go}>
+          <Page />
+        </NavContext.Provider>
 
         {menuOpen && <div className="nav-backdrop" onClick={() => setMenuOpen(false)} />}
         <nav className={`bottom-nav ${menuOpen ? 'open' : ''}`}>

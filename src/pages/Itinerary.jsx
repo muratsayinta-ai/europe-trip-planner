@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useData } from '../context/DataContext'
+import { useNav } from '../context/NavContext'
 import DayForm from '../components/DayForm'
 import ReorderList from '../components/ReorderList'
 import { fmtDayDate, fmtFullDate } from '../lib/dates'
@@ -16,6 +17,7 @@ function TrashIcon() {
 
 export default function Itinerary() {
   const { cities, itinerary, addDay, updateDay, deleteDay, reorderActivity, optimizeDay, startDate, setStartDate, dateForDay, endDate } = useData()
+  const nav = useNav()
   const [openDay, setOpenDay] = useState(1)
   const [modal, setModal] = useState(null)
 
@@ -27,6 +29,10 @@ export default function Itinerary() {
 
   return (
     <div className="content">
+      <button className="page-jump" onClick={() => nav('places')}>
+        🏛️ Browse & add Places <span className="page-jump-arrow">→</span>
+      </button>
+
       <div className="place-card" style={{borderLeftColor:'#10b981', marginBottom: 16}}>
         <div className="card-actions-row">
           <div className="place-name">📅 {itinerary.length}-Day Plan</div>

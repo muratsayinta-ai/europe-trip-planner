@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useData } from '../context/DataContext'
+import { useNav } from '../context/NavContext'
 import PlaceForm from '../components/PlaceForm'
 import PlaceSuggestions from '../components/PlaceSuggestions'
 import { cityCenterOf } from '../lib/geo'
@@ -13,6 +14,7 @@ function TrashIcon() {
 
 export default function Places() {
   const { cities, places, itinerary, addPlace, updatePlace, deletePlace, scheduleOnBestDay, dayForPlace, setPlaceDay } = useData()
+  const nav = useNav()
   const [activeCity, setActiveCity] = useState('paris')
   useEffect(() => {
     if (cities.length && !cities.some(c => c.id === activeCity)) setActiveCity(cities[0].id)
@@ -61,6 +63,10 @@ export default function Places() {
           </button>
         ))}
       </div>
+
+      <button className="page-jump" onClick={() => nav('plan')}>
+        📅 See these on your Day Plan <span className="page-jump-arrow">→</span>
+      </button>
 
       <div className="filter-row">
         {[['all','All'], ['must','⭐ Must See'], ['kids','👶 Kids']].map(([val, label]) => (

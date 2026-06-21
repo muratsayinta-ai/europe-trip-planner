@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useData } from '../context/DataContext'
 import DayForm from '../components/DayForm'
 import ReorderList from '../components/ReorderList'
+import { fmtDayDate, fmtFullDate } from '../lib/dates'
 
 function ChevronDown() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><polyline points="6 9 12 15 18 9"/></svg>
@@ -14,7 +15,7 @@ function TrashIcon() {
 }
 
 export default function Itinerary() {
-  const { cities, itinerary, addDay, updateDay, deleteDay, reorderActivity, optimizeDay } = useData()
+  const { cities, itinerary, addDay, updateDay, deleteDay, reorderActivity, optimizeDay, startDate, setStartDate, dateForDay, endDate } = useData()
   const [openDay, setOpenDay] = useState(1)
   const [modal, setModal] = useState(null)
 
@@ -31,7 +32,21 @@ export default function Itinerary() {
           <div className="place-name">📅 {itinerary.length}-Day Plan</div>
           <button className="filter-btn add-btn" style={{marginLeft:'auto'}} onClick={() => setModal({ mode: 'add' })}>+ Add Day</button>
         </div>
-        <div className="place-desc">Tap any day to expand. Edit or add days to make it yours.</div>
+        <div className="trip-date-row">
+          <label className="trip-date-field">
+            Start date
+            <input type="date" value={startDate || ''} onChange={e => setStartDate(e.target.value)} />
+          </label>
+          <div className="trip-date-end">
+            <span>End date</span>
+            <strong>{endDate ? fmtFullDate(endDate) : '—'}</strong>
+          </div>
+        </div>
+        <div className="place-desc">
+          {startDate
+            ? <>Dates run {fmtFullDate(dateForDay(1))} → {fmtFullDate(endDate)}. Tap any day to expand.</>
+            : 'Set a start date to see the calendar date on every day. Tap any day to expand.'}
+        </div>
       </div>
 
       {itinerary.map(day => {
@@ -40,8 +55,12 @@ export default function Itinerary() {
         return (
           <div key={day.day} className="day-card">
             <div className="day-header" onClick={() => toggle(day.day)}>
-              <div className="day-number">{day.day}</div>
+              <div className="day-number-col">
+                <div className="day-number-label">Day</div>
+                <div className="day-number">{day.day}</div>
+              </div>
               <div className="day-info">
+                {dateForDay(day.day) && <div className="day-date-chip">📅 {fmtDayDate(dateForDay(day.day))}</div>}
                 <div className="day-title">{day.title}</div>
                 <div className="day-city-label">{city?.flag} {city?.name}, {city?.country}</div>
               </div>

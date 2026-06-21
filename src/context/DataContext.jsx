@@ -87,6 +87,7 @@ export function DataProvider({ children }) {
     load('trip_itinerary', resolveItinerary(defaultItinerary, defaultPlaces))
   )
   const [videos, setVideos] = useState(() => load('trip_videos', {}))
+  const [startDate, setStartDate] = useState(() => load('trip_start_date', '')) // 'YYYY-MM-DD'
 
   useEffect(() => { save('trip_cities', cities) }, [cities])
   useEffect(() => { save('trip_places', places) }, [places])
@@ -94,6 +95,7 @@ export function DataProvider({ children }) {
   useEffect(() => { save('trip_hotels', hotels) }, [hotels])
   useEffect(() => { save('trip_itinerary', itinerary) }, [itinerary])
   useEffect(() => { save('trip_videos', videos) }, [videos])
+  useEffect(() => { save('trip_start_date', startDate) }, [startDate])
 
   // Keep the day plan in lock-step with the city order. Runs whenever the city
   // list changes (load, drag-reorder, add/remove) and re-groups the itinerary so
@@ -116,7 +118,7 @@ export function DataProvider({ children }) {
   const pushTimer = useRef(null)
   const [syncStatus, setSyncStatus] = useState(syncEnabled ? 'connecting' : 'local')
 
-  const snapshot = () => ({ cities, places, restaurants, hotels, itinerary, videos })
+  const snapshot = () => ({ cities, places, restaurants, hotels, itinerary, videos, startDate })
   const applySnapshot = (d) => {
     if (!d) return
     applyingRemote.current = true
@@ -126,6 +128,7 @@ export function DataProvider({ children }) {
     if (d.hotels) setHotels(d.hotels)
     if (d.itinerary) setItinerary(d.itinerary)
     if (d.videos) setVideos(d.videos)
+    if (d.startDate !== undefined) setStartDate(d.startDate)
   }
 
   // Initial handshake: pull the shared copy and hydrate if it's newer; otherwise
@@ -192,7 +195,7 @@ export function DataProvider({ children }) {
     clearTimeout(pushTimer.current)
     pushTimer.current = setTimeout(() => { pushTrip(tripId, snap, rev) }, 800)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cities, places, restaurants, hotels, itinerary, videos])
+  }, [cities, places, restaurants, hotels, itinerary, videos, startDate])
 
   // --- Places ---
   const addPlace = (cityId, place) => {
@@ -417,9 +420,22 @@ export function DataProvider({ children }) {
     }))
   }
 
+  // Calendar date for a given day number, derived from the trip start date.
+  // Returns a Date (local midnight) or null when no start date is set.
+  const dateForDay = (dayNum) => {
+    if (!startDate) return null
+    const d = new Date(startDate + 'T00:00:00')
+    if (isNaN(d.getTime())) return null
+    d.setDate(d.getDate() + (dayNum - 1))
+    return d
+  }
+  // Last day's date — the trip's end date.
+  const endDate = itinerary.length ? dateForDay(itinerary.length) : null
+
   return (
     <DataContext.Provider value={{
       cities, places, restaurants, hotels, itinerary, videos,
+      startDate, setStartDate, dateForDay, endDate,
       addVideo, updateVideo, deleteVideo,
       addPlace, updatePlace, deletePlace, findBestDay, scheduleOnBestDay,
       dayForPlace, setPlaceDay, reorderActivity, optimizeDay, hotelAnchor,
